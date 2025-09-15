@@ -1,0 +1,13 @@
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+.next
+apps/*/.next
+packages/*/.next
+.turbo
+.env
+.env.local
+.env.*.local
+.prisma
+.DS_Store
+

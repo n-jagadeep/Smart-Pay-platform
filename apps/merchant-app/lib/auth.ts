@@ -1,48 +1,47 @@
+import type { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import db from "@repo/db/client";
 
-export const authOptions = {
-    providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID || "",
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || ""
-        })
-    ],
-    callbacks: {
-      async signIn({ user, account }: {
-        user: {
-          email: string;
-          name: string
-        },
-        account: {
-          provider: "google" | "github"
-        }
-      }) {
-        console.log("hi signin")
-        if (!user || !user.email) {
-          return false;
-        }
-
-        await db.merchant.upsert({
-          select: {
-            id: true
-          },
-          where: {
-            email: user.email
-          },
-          create: {
-            email: user.email,
-            name: user.name,
-            auth_type: account.provider === "google" ? "Google" : "Github" // Use a prisma type here
-          },
-          update: {
-            name: user.name,
-            auth_type: account.provider === "google" ? "Google" : "Github" // Use a prisma type here
-          }
-        });
-
-        return true;
+export const authOptions: AuthOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+  ],
+  callbacks: {
+    async signIn({ user, account }) {
+      if (!user?.email || !account?.provider) {
+        return false;
       }
+
+      if (account.provider !== "google" && account.provider !== "github") {
+        return false;
+      }
+
+      const authType = account.provider === "google" ? "Google" : "Github";
+      const merchantName = user.name ?? undefined;
+
+      await db.merchant.upsert({
+        select: {
+          id: true,
+        },
+        where: {
+          email: user.email,
+        },
+        create: {
+          email: user.email,
+          auth_type: authType,
+          ...(merchantName ? { name: merchantName } : {}),
+        },
+        update: {
+          auth_type: authType,
+          ...(merchantName ? { name: merchantName } : {}),
+        },
+      });
+
+      return true;
     },
-    secret: process.env.NEXTAUTH_SECRET || "secret"
-  }
+  },
+  secret: process.env.NEXTAUTH_SECRET || "secret",
+};
